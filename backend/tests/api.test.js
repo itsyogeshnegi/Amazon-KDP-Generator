@@ -88,11 +88,38 @@ test("swagger docs route loads", async () => {
   const server = buildServer();
   const port = server.address().port;
 
+  const homeResponse = await fetch(`http://127.0.0.1:${port}/`, {
+    redirect: "manual"
+  });
+  assert.equal(homeResponse.status, 302);
+  assert.equal(homeResponse.headers.get("location"), "/api/docs/");
+
+  const redirectResponse = await fetch(`http://127.0.0.1:${port}/api/docs`, {
+    redirect: "manual"
+  });
+  assert.equal(redirectResponse.status, 302);
+  assert.equal(redirectResponse.headers.get("location"), "/api/docs/");
+
   const response = await fetch(`http://127.0.0.1:${port}/api/docs/`);
   const body = await response.text();
 
   assert.equal(response.status, 200);
   assert.match(body, /swagger-ui/i);
-  assert.match(body, /Amazon KDP Generator API/i);
+  assert.match(body, /Amazon KDP Generator API Docs/i);
+  assert.match(body, /\/api\/docs\.json/i);
+  await closeServer(server);
+});
+
+test("swagger json route returns the spec", async () => {
+  const server = buildServer();
+  const port = server.address().port;
+
+  const response = await fetch(`http://127.0.0.1:${port}/api/docs.json`);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.openapi, "3.0.3");
+  assert.equal(body.info.title, "Amazon KDP Generator API");
+  assert.equal(body.servers[0].url, "https://amazon-kdp-generator.onrender.com");
   await closeServer(server);
 });

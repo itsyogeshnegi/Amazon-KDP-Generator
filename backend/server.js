@@ -28,7 +28,25 @@ export function createApp() {
   );
   app.use(express.json({ limit: "2mb" }));
   app.use("/downloads", express.static(path.join(__dirname, "downloads")));
-  app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  app.get("/", (_req, res) => {
+    res.redirect(302, "/api/docs/");
+  });
+  app.get(/^\/api\/docs$/, (_req, res) => {
+    res.redirect(302, "/api/docs/");
+  });
+  app.get("/api/docs.json", (_req, res) => {
+    res.json(swaggerSpec);
+  });
+  app.use(
+    "/api/docs/",
+    swaggerUi.serve,
+    swaggerUi.setup(undefined, {
+      customSiteTitle: "Amazon KDP Generator API Docs",
+      swaggerOptions: {
+        url: "/api/docs.json"
+      }
+    })
+  );
   app.use("/api", generateRoutes);
 
   app.get("/api/health", (_req, res) => {
