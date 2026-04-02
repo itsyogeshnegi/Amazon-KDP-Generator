@@ -9,7 +9,7 @@ import { swaggerSpec } from "./swagger.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PORT = process.env.PORT || 5000;
-const allowedOrigins = buildAllowedOrigins();
+const corsConfig = buildCorsConfig();
 
 export function createApp() {
   const app = express();
@@ -17,12 +17,16 @@ export function createApp() {
   app.use(
     cors({
       origin(origin, callback) {
-        if (!origin || allowedOrigins.has(origin)) {
+        if (isAllowedOrigin(origin, corsConfig)) {
           callback(null, true);
           return;
         }
 
-        callback(new Error("CORS origin not allowed."));
+        callback(
+          new Error(
+            `CORS origin not allowed: ${origin || "unknown origin"}`
+          )
+        );
       }
     })
   );
@@ -71,14 +75,66 @@ if (process.argv[1] === __filename) {
 }
 
 function buildAllowedOrigins() {
-  const configured = (process.env.FRONTEND_URL || "")
+  return (process.env.FRONTEND_URL || "")
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean);
+}
 
-  return new Set([
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    ...configured
-  ]);
+function buildCorsConfig() {
+  const configuredOrigins = buildAllowedOrigins();
+  const exactOrigins = new Set(configuredOrigins);
+
+  return {
+    exactOrigins,
+    vercelHosts: configuredOrigins
+      .map(getHostname)
+      .filter((hostname) => hostname && hostname.endsWith(".vercel.app"))
+  };
+}
+
+function isAllowedOrigin(origin, config) {
+  if (!origin) {
+    return true;
+  }
+
+  if (isLocalDevelopmentOrigin(origin)) {
+    return true;
+  }
+
+  if (config.exactOrigins.has(origin)) {
+    return true;
+  }
+
+  const hostname = getHostname(origin);
+  if (!hostname) {
+    return false;
+  }
+
+  return config.vercelHosts.includes(hostname);
+}
+
+function isLocalDevelopmentOrigin(origin) {
+  const parsed = safelyParseUrl(origin);
+  if (!parsed) {
+    return false;
+  }
+
+  return (
+    parsed.protocol === "http:" &&
+    (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")
+  );
+}
+
+function getHostname(origin) {
+  const parsed = safelyParseUrl(origin);
+  return parsed ? parsed.hostname : "";
+}
+
+function safelyParseUrl(value) {
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
 }
