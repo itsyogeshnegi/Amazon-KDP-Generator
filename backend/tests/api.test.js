@@ -1,19 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import express from "express";
-import generateRoutes from "../routes/generateRoutes.js";
+import { createApp } from "../server.js";
 
 function buildServer() {
-  const app = express();
-  app.use(express.json());
-  app.use("/api", generateRoutes);
-  app.use((err, _req, res, _next) => {
-    res.status(err.status || 500).json({
-      success: false,
-      message: err.message
-    });
-  });
-  return app.listen(0);
+  return createApp().listen(0);
 }
 
 function closeServer(server) {
@@ -91,5 +81,18 @@ test("generate endpoint creates a PDF and download route serves it", async () =>
   assert.equal(fileResponse.status, 200);
   assert.equal(fileResponse.headers.get("content-type"), "application/pdf");
   await fileResponse.arrayBuffer();
+  await closeServer(server);
+});
+
+test("swagger docs route loads", async () => {
+  const server = buildServer();
+  const port = server.address().port;
+
+  const response = await fetch(`http://127.0.0.1:${port}/api/docs/`);
+  const body = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.match(body, /swagger-ui/i);
+  assert.match(body, /Amazon KDP Generator API/i);
   await closeServer(server);
 });

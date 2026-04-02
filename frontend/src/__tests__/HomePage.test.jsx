@@ -7,8 +7,10 @@ vi.mock("../services/api.js", () => ({
   generatePuzzleBook: vi.fn(async () => ({
     manifestId: "demo",
     totalPuzzles: 50,
-    fileUrl: "/api/downloads/demo.pdf"
-  }))
+    fileUrl: "/api/downloads/demo.pdf",
+    fileName: "demo.pdf"
+  })),
+  downloadGeneratedPdf: vi.fn(async () => {})
 }));
 
 describe("HomePage", () => {
