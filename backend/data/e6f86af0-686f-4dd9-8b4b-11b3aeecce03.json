@@ -1,0 +1,602 @@
+{
+  "id": "e6f86af0-686f-4dd9-8b4b-11b3aeecce03",
+  "createdAt": "2026-04-02T05:24:54.184Z",
+  "request": {
+    "type": "crossword",
+    "difficulty": "medium",
+    "count": 1,
+    "layout": {
+      "puzzlesPerPage": 1,
+      "pageSize": "LETTER",
+      "margins": {
+        "top": 54,
+        "right": 54,
+        "bottom": 54,
+        "left": 54
+      }
+    },
+    "includeCoverPage": true,
+    "theme": "tech"
+  },
+  "puzzleCount": 1,
+  "jsonPath": "C:\\Users\\DELL\\Desktop\\KDP\\backend\\data\\e6f86af0-686f-4dd9-8b4b-11b3aeecce03.json",
+  "pdfPath": "C:\\Users\\DELL\\Desktop\\KDP\\backend\\downloads\\puzzle-book-e6f86af0-686f-4dd9-8b4b-11b3aeecce03.pdf",
+  "puzzles": [
+    {
+      "id": "1188548a-f98c-4e3d-896f-95c86ffb5941",
+      "number": 1,
+      "type": "crossword",
+      "difficulty": "medium",
+      "puzzle": {
+        "size": 11,
+        "grid": [
+          [
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "#",
+            "#",
+            "",
+            "#",
+            "#",
+            "#",
+            "",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "#",
+            "#",
+            "",
+            "#",
+            "#",
+            "#",
+            "",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "#",
+            "#",
+            "",
+            "#",
+            "#",
+            "#",
+            "",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "#",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "#",
+            "",
+            "",
+            "#",
+            "#",
+            "#",
+            "",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "#",
+            "",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "#",
+            "",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "#",
+            "",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "#",
+            "",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#"
+          ]
+        ],
+        "mask": [
+          [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            false,
+            true,
+            false,
+            false,
+            false,
+            true,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            false,
+            true,
+            false,
+            false,
+            false,
+            true,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            false,
+            true,
+            false,
+            false,
+            false,
+            true,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            true,
+            true,
+            false,
+            false,
+            false,
+            true,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        ],
+        "numbering": [
+          {
+            "row": 1,
+            "col": 3,
+            "number": 1
+          },
+          {
+            "row": 1,
+            "col": 7,
+            "number": 2
+          },
+          {
+            "row": 2,
+            "col": 3,
+            "number": 3
+          },
+          {
+            "row": 2,
+            "col": 7,
+            "number": 4
+          },
+          {
+            "row": 3,
+            "col": 3,
+            "number": 5
+          },
+          {
+            "row": 3,
+            "col": 7,
+            "number": 6
+          },
+          {
+            "row": 4,
+            "col": 1,
+            "number": 7
+          },
+          {
+            "row": 4,
+            "col": 2,
+            "number": 8
+          },
+          {
+            "row": 4,
+            "col": 4,
+            "number": 9
+          },
+          {
+            "row": 4,
+            "col": 5,
+            "number": 10
+          },
+          {
+            "row": 4,
+            "col": 6,
+            "number": 11
+          },
+          {
+            "row": 5,
+            "col": 2,
+            "number": 12
+          },
+          {
+            "row": 6,
+            "col": 2,
+            "number": 13
+          },
+          {
+            "row": 6,
+            "col": 7,
+            "number": 14
+          },
+          {
+            "row": 7,
+            "col": 2,
+            "number": 15
+          },
+          {
+            "row": 8,
+            "col": 2,
+            "number": 16
+          },
+          {
+            "row": 9,
+            "col": 2,
+            "number": 17
+          },
+          {
+            "row": 10,
+            "col": 2,
+            "number": 18
+          }
+        ],
+        "clues": {
+          "across": [
+            {
+              "number": 12,
+              "clue": "Machine that provides resources",
+              "answerLength": 6
+            },
+            {
+              "number": 7,
+              "clue": "Popular programming language",
+              "answerLength": 6
+            }
+          ],
+          "down": [
+            {
+              "number": 1,
+              "clue": "Traffic director for networks",
+              "answerLength": 6
+            },
+            {
+              "number": 12,
+              "clue": "Small automation program",
+              "answerLength": 6
+            },
+            {
+              "number": 2,
+              "clue": "Base-2 representation",
+              "answerLength": 6
+            }
+          ]
+        },
+        "theme": "tech"
+      },
+      "solution": {
+        "size": 11,
+        "grid": [
+          [
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "#",
+            "#",
+            "R",
+            "#",
+            "#",
+            "#",
+            "B",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "#",
+            "#",
+            "O",
+            "#",
+            "#",
+            "#",
+            "I",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "#",
+            "#",
+            "U",
+            "#",
+            "#",
+            "#",
+            "N",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "P",
+            "Y",
+            "T",
+            "H",
+            "O",
+            "N",
+            "A",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "#",
+            "S",
+            "E",
+            "R",
+            "V",
+            "E",
+            "R",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "#",
+            "C",
+            "R",
+            "#",
+            "#",
+            "#",
+            "Y",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "#",
+            "R",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "#",
+            "I",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "#",
+            "P",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#"
+          ],
+          [
+            "#",
+            "#",
+            "T",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#",
+            "#"
+          ]
+        ]
+      },
+      "meta": {
+        "title": "Crossword 1",
+        "theme": "tech",
+        "wordsPlaced": 5
+      }
+    }
+  ]
+}
