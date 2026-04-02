@@ -7,11 +7,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const backendRoot = path.resolve(__dirname, "../..");
 
-const PAGE = {
-  width: 612,
-  height: 792
-};
-
 const PALETTES = {
   sudoku: {
     primary: "#C97919",
@@ -34,6 +29,20 @@ const PALETTES = {
     line: "#8EA2FF",
     dark: "#1D2751"
   },
+  wordsearch: {
+    primary: "#7A9A12",
+    soft: "#F2F8D8",
+    accent: "#E4B93A",
+    line: "#B7CC6A",
+    dark: "#405306"
+  },
+  tictactoe: {
+    primary: "#FF5FA2",
+    soft: "#FFE4F0",
+    accent: "#D53B81",
+    line: "#FF9BC5",
+    dark: "#742549"
+  },
   answer: {
     primary: "#7A3AB8",
     soft: "#F0E6FB",
@@ -49,8 +58,9 @@ const PALETTES = {
 export async function createPdfBook({ puzzles, request, fileName }) {
   const downloadsDir = path.join(backendRoot, "downloads");
   const filePath = path.join(downloadsDir, fileName);
+  const page = getPage(request);
   const doc = new PDFDocument({
-    size: "LETTER",
+    size: request.layout.pageSize,
     margins: request.layout.margins
   });
 
@@ -61,100 +71,126 @@ export async function createPdfBook({ puzzles, request, fileName }) {
     doc.pipe(stream);
 
     if (request.includeCoverPage) {
-      renderCoverPage(doc, request, puzzles.length);
+      renderCoverPage(doc, request, puzzles.length, page);
       doc.addPage();
     }
 
-    renderPuzzlePages(doc, puzzles, request.layout.puzzlesPerPage, request);
+    renderPuzzlePages(doc, puzzles, request.layout.puzzlesPerPage, request, page);
     doc.addPage();
-    renderAnswerSection(doc, puzzles, request);
+    renderAnswerSection(doc, puzzles, request, page);
+
+    if (request.includeCoverPage) {
+      doc.addPage();
+      renderBackCoverPage(doc, request, puzzles.length, page);
+    }
     doc.end();
   });
 
   return { filePath };
 }
 
-function renderCoverPage(doc, request, totalPuzzles) {
+function renderCoverPage(doc, request, totalPuzzles, page) {
   const palette = getPalette(request.type);
   paintPageBase(doc, palette.soft);
-  drawOuterChrome(doc, palette);
+  drawOuterChrome(doc, palette, page);
 
-  const frame = { x: 34, y: 34, width: PAGE.width - 68, height: PAGE.height - 68 };
+  const frameInset = Math.max(28, Math.min(42, page.width * 0.055));
+  const frame = {
+    x: frameInset,
+    y: frameInset,
+    width: page.width - frameInset * 2,
+    height: page.height - frameInset * 2
+  };
   drawRoundedPanel(doc, frame, palette, 30, "#FFFFFF");
 
   const inner = inset(frame, 26);
+  const footerHeight = 44;
+  const gutter = 22;
   const left = {
     x: inner.x,
     y: inner.y,
-    width: Math.min(250, inner.width * 0.5),
-    height: inner.height
+    width: Math.min(252, inner.width * 0.47),
+    height: inner.height - footerHeight
   };
   const right = {
-    x: left.x + left.width + 22,
-    y: inner.y + 64,
-    width: inner.x + inner.width - (left.x + left.width + 22),
-    height: inner.height - 150
+    x: left.x + left.width + gutter,
+    y: inner.y + 54,
+    width: inner.width - left.width - gutter,
+    height: inner.height - footerHeight - 60
   };
 
-  drawRibbon(doc, left.x, left.y + 8, 220, 22, palette.primary, "KDP PUZZLE EDITION");
+  drawRibbon(doc, left.x, left.y + 8, Math.min(220, left.width), 22, palette.primary, "AUTHOR YOGESH NEGI");
+
+  const titleY = left.y + 58;
+  const title = "Puzzle Book Export";
+  const subtitle =
+    "Crafted for clean print-ready exports with richer layouts, stronger branding, and stable puzzle presentation.";
+  doc.font("Helvetica-Bold").fontSize(26);
+  const titleHeight = doc.heightOfString(title, {
+    width: left.width,
+    lineGap: 2
+  });
 
   doc.fillColor(palette.dark)
     .font("Helvetica-Bold")
-    .fontSize(30)
-    .text("Puzzle Book Export", left.x, left.y + 60, {
+    .fontSize(26)
+    .text(title, left.x, titleY, {
       width: left.width,
+      lineGap: 2,
       align: "left"
     });
 
+  const subtitleY = titleY + titleHeight + 12;
+  doc.font("Helvetica").fontSize(12.5);
+  const subtitleHeight = doc.heightOfString(subtitle, {
+    width: left.width,
+    lineGap: 4
+  });
   doc.fillColor("#42506A")
     .font("Helvetica")
     .fontSize(12.5)
-    .text(
-      "Crafted for clean print-ready exports with richer layouts, stronger branding, and stable puzzle presentation.",
-      left.x,
-      left.y + 116,
-      {
-        width: left.width,
-        lineGap: 4
-      }
-    );
+    .text(subtitle, left.x, subtitleY, {
+      width: left.width,
+      lineGap: 4
+    });
 
   drawSummaryCard(
     doc,
     {
       x: left.x,
-      y: left.y + 210,
+      y: subtitleY + subtitleHeight + 28,
       width: left.width,
       height: 180
     },
     palette,
     [
-      ["Type", capitalize(request.type)],
+      ["Type", formatPuzzleType(request.type)],
       ["Difficulty", capitalize(request.difficulty)],
       ["Puzzles", String(totalPuzzles)],
       ["Layout", `${request.layout.puzzlesPerPage} per page`],
-      ...(request.type === "crossword" ? [["Theme", capitalize(request.theme)]] : [])
+      ...(["crossword", "wordsearch"].includes(request.type) ? [["Theme", capitalize(request.theme)]] : [])
     ]
   );
 
   drawCoverArt(doc, right, palette, request.type);
 
+  const footerY = frame.y + frame.height - 34;
   doc.fillColor("#5E6678")
     .font("Helvetica")
     .fontSize(11)
-    .text("Formatted for 8.5 x 11 inch print-safe output.", left.x, frame.y + frame.height - 34, {
+    .text(`Formatted for ${request.layout.pageSizeLabel} inch print-safe output.`, left.x, footerY, {
       width: 260
     });
 
   doc.fillColor(palette.primary)
     .font("Helvetica-Bold")
     .fontSize(12)
-    .text("Colorful. Clean. KDP-friendly.", left.x, frame.y + frame.height - 14, {
+    .text("Colorful. Clean. KDP-friendly.", left.x, footerY + 18, {
       width: 220
     });
 }
 
-function renderPuzzlePages(doc, puzzles, puzzlesPerPage, request) {
+function renderPuzzlePages(doc, puzzles, puzzlesPerPage, request, page) {
   const groups = chunk(puzzles, puzzlesPerPage);
 
   groups.forEach((group, groupIndex) => {
@@ -164,41 +200,69 @@ function renderPuzzlePages(doc, puzzles, puzzlesPerPage, request) {
 
     const palette = getPalette(group[0]?.type || request.type);
     paintPageBase(doc, "#FFFCF8");
-    drawPageChrome(doc, palette, "Puzzles", `Page ${groupIndex + 1}`);
+    drawPageChrome(doc, palette, "Puzzles", `Page ${groupIndex + 1}`, page);
 
     group.forEach((puzzle, index) => {
-      const region = getRegion(doc, puzzlesPerPage, index);
+      const region = getRegion(doc, puzzlesPerPage, index, page);
       renderPuzzleBlock(doc, puzzle, region, false, puzzlesPerPage);
     });
   });
 }
 
-function renderAnswerSection(doc, puzzles, request) {
+function renderAnswerSection(doc, puzzles, request, page) {
   const palette = PALETTES.answer;
   paintPageBase(doc, "#FCF8FF");
-  drawPageChrome(doc, palette, "Answer Key", `${capitalize(request.type)} solutions`);
+  drawPageChrome(
+    doc,
+    palette,
+    "Answer Key",
+    request.type === "tictactoe" ? "Free play pages" : `${formatPuzzleType(request.type)} solutions`,
+    page
+  );
 
   doc.fillColor(palette.dark)
     .font("Helvetica-Bold")
     .fontSize(28)
-    .text("Solutions & Answer Guide", 60, 116, { width: 460 });
+    .text(request.type === "tictactoe" ? "Free Play Guide" : "Solutions & Answer Guide", 60, 116, { width: 460 });
 
   doc.fillColor("#5F5A75")
     .font("Helvetica")
     .fontSize(12)
     .text(
-      "Each solution page uses the same stable grid system with clearer contrast and cleaner spacing.",
+      request.type === "tictactoe"
+        ? "Tic-Tac-Toe pages are open-play activity sheets, so this section keeps the book structure without adding fake answers."
+        : "Each solution page uses the same stable grid system with clearer contrast and cleaner spacing.",
       60,
       154,
       { width: 460, lineGap: 3 }
     );
 
-  drawRibbon(doc, 60, 204, 170, 22, palette.primary, "SOLVED PAGES");
+  drawRibbon(doc, 60, 204, 170, 22, palette.primary, request.type === "tictactoe" ? "FREE PLAY NOTE" : "SOLVED PAGES");
+
+  if (request.type === "tictactoe") {
+    doc.fillColor(palette.primary)
+      .font("Helvetica-Bold")
+      .fontSize(18)
+      .text("No answer key is needed for Tic-Tac-Toe.", 60, 258, {
+        width: 440
+      });
+
+    doc.fillColor("#5F5A75")
+      .font("Helvetica")
+      .fontSize(12)
+      .text(
+        "Use each board for repeated play, classroom activities, and family game time. The export still closes with a polished back page for a complete KDP-friendly flow.",
+        60,
+        292,
+        { width: 440, lineGap: 4 }
+      );
+    return;
+  }
 
   puzzles.forEach((puzzle, index) => {
     doc.addPage();
     paintPageBase(doc, "#FFFFFF");
-    drawPageChrome(doc, palette, "Answer Key", `Solution ${index + 1}`);
+    drawPageChrome(doc, palette, "Answer Key", `Solution ${index + 1}`, page);
 
     renderPuzzleBlock(
       doc,
@@ -234,6 +298,10 @@ function renderPuzzleBlock(doc, puzzle, region, isSolution, puzzlesPerPage) {
     drawMaze(doc, isSolution ? { ...puzzle.puzzle, path: puzzle.solution } : puzzle.puzzle, content, palette, isSolution);
   } else if (puzzle.type === "crossword") {
     drawCrossword(doc, puzzle, content, palette, isSolution, compact);
+  } else if (puzzle.type === "wordsearch") {
+    drawWordSearch(doc, puzzle, content, palette, isSolution, compact);
+  } else if (puzzle.type === "tictactoe") {
+    drawTicTacToe(doc, isSolution ? puzzle.solution : puzzle.puzzle, content, palette, compact);
   }
 
   drawFooterTag(doc, region, palette, isSolution ? "Solution Page" : "Puzzle Page", compact);
@@ -382,6 +450,100 @@ function drawCrossword(doc, crossword, content, palette, isSolution, compact) {
   drawCluePanel(doc, { x: clueX, y: clueY, width: clueWidth, height: clueHeight }, crossword.puzzle.clues, palette);
 }
 
+function drawWordSearch(doc, wordSearch, content, palette, isSolution, compact) {
+  const board = isSolution ? wordSearch.solution : wordSearch.puzzle;
+  const listHeight = Math.min(compact ? 74 : 96, Math.max(58, content.height * 0.22));
+  const boardHeight = content.height - listHeight - 14;
+  const boardSize = Math.max(120, Math.min(content.width, boardHeight));
+  const startX = content.x + (content.width - boardSize) / 2;
+  const startY = content.y;
+  const cell = boardSize / board.size;
+  const highlightMap = new Map();
+
+  if (isSolution) {
+    board.highlights.forEach((highlight, index) => {
+      highlight.path.forEach(([row, col]) => {
+        highlightMap.set(`${row},${col}`, index);
+      });
+    });
+  }
+
+  doc.save()
+    .roundedRect(startX - 10, startY - 10, boardSize + 20, boardSize + 20, 18)
+    .fillOpacity(0.28)
+    .fill(palette.soft)
+    .restore();
+
+  for (let row = 0; row < board.size; row += 1) {
+    for (let col = 0; col < board.size; col += 1) {
+      const x = startX + col * cell;
+      const y = startY + row * cell;
+      const isHighlighted = highlightMap.has(`${row},${col}`);
+      doc.save()
+        .roundedRect(x, y, cell, cell, Math.max(2, cell * 0.1))
+        .fill(isHighlighted ? palette.soft : "#FFFFFF")
+        .restore();
+      doc.strokeColor(palette.line).lineWidth(0.7).roundedRect(x, y, cell, cell, Math.max(2, cell * 0.1)).stroke();
+      doc.fillColor(palette.dark)
+        .font("Helvetica-Bold")
+        .fontSize(Math.max(6, Math.min(12, cell * 0.42)))
+        .text(board.grid[row][col], x, y + cell * 0.22, {
+          width: cell,
+          align: "center"
+        });
+    }
+  }
+
+  drawWordList(doc, board.words, {
+    x: content.x,
+    y: startY + boardSize + 14,
+    width: content.width,
+    height: listHeight
+  }, palette);
+}
+
+function drawTicTacToe(doc, tictactoe, content, palette, compact) {
+  const boardCount = tictactoe.boardsPerPage || tictactoe.boards.length;
+  const columns = compact ? (boardCount >= 4 ? 2 : 1) : boardCount >= 9 ? 3 : boardCount >= 6 ? 3 : 2;
+  const rows = Math.ceil(boardCount / columns);
+  const gap = compact ? 12 : 16;
+  const subtitleOffset = compact ? 26 : 38;
+  const boardAreaHeight = content.height - subtitleOffset;
+  const boardSize = Math.min(
+    (content.width - gap * (columns - 1)) / columns,
+    (boardAreaHeight - gap * (rows - 1)) / rows
+  );
+  const totalWidth = columns * boardSize + gap * (columns - 1);
+  const totalHeight = rows * boardSize + gap * (rows - 1);
+  const originX = content.x + (content.width - totalWidth) / 2;
+  const originY = content.y + subtitleOffset + Math.max(0, (boardAreaHeight - totalHeight) / 2);
+
+  if (tictactoe.subtitle) {
+    doc.fillColor("#6D4A5E")
+      .font("Helvetica")
+      .fontSize(compact ? 8.5 : 10.5)
+      .text(tictactoe.subtitle, content.x, content.y, {
+        width: content.width,
+        align: "center"
+      });
+  }
+
+  tictactoe.boards.forEach((board, index) => {
+    const row = Math.floor(index / columns);
+    const col = index % columns;
+    drawTicTacToeBoard(
+      doc,
+      {
+        x: originX + col * (boardSize + gap),
+        y: originY + row * (boardSize + gap),
+        size: boardSize
+      },
+      palette,
+      board.id
+    );
+  });
+}
+
 function drawCluePanel(doc, box, clues, palette) {
   drawRoundedPanel(doc, box, palette, 16, "#FFFFFF");
   drawRibbon(doc, box.x + 14, box.y + 12, Math.min(90, box.width - 28), 18, palette.primary, "CLUES");
@@ -418,13 +580,13 @@ function drawCluePanel(doc, box, clues, palette) {
   }
 }
 
-function drawPageChrome(doc, palette, sectionLabel, trailingLabel) {
-  doc.save().rect(0, 0, PAGE.width, PAGE.height).lineWidth(0.8).stroke("#E6DED2").restore();
-  doc.save().rect(0, 0, PAGE.width, 44).fill(palette.soft).restore();
-  doc.strokeColor(palette.line).lineWidth(1).moveTo(28, 44).lineTo(PAGE.width - 28, 44).stroke();
+function drawPageChrome(doc, palette, sectionLabel, trailingLabel, page) {
+  doc.save().rect(0, 0, page.width, page.height).lineWidth(0.8).stroke("#E6DED2").restore();
+  doc.save().rect(0, 0, page.width, 44).fill(palette.soft).restore();
+  doc.strokeColor(palette.line).lineWidth(1).moveTo(28, 44).lineTo(page.width - 28, 44).stroke();
 
   doc.fillColor(palette.primary).font("Helvetica-Bold").fontSize(10).text(sectionLabel.toUpperCase(), 38, 16);
-  doc.fillColor("#657089").font("Helvetica").fontSize(10).text(trailingLabel, PAGE.width - 160, 16, {
+  doc.fillColor("#657089").font("Helvetica").fontSize(10).text(trailingLabel, page.width - 160, 16, {
     width: 120,
     align: "right"
   });
@@ -438,7 +600,15 @@ function drawBlockHeader(doc, puzzle, region, palette, isSolution, compact) {
   const titleSize = compact ? 13 : 18;
   const chipY = titleY + titleSize + 8;
 
-  drawRibbon(doc, region.x + padding, baseY, ribbonWidth, compact ? 16 : 18, palette.primary, (isSolution ? "SOLUTION" : capitalize(puzzle.type)).toUpperCase());
+  drawRibbon(
+    doc,
+    region.x + padding,
+    baseY,
+    ribbonWidth,
+    compact ? 16 : 18,
+    palette.primary,
+    (isSolution ? "SOLUTION" : formatPuzzleType(puzzle.type)).toUpperCase()
+  );
 
   doc.fillColor(palette.dark)
     .font("Helvetica-Bold")
@@ -477,7 +647,7 @@ function drawFooterTag(doc, region, palette, label, compact) {
   doc.fillColor(palette.primary)
     .font("Helvetica-Bold")
     .fontSize(compact ? 7.5 : 9)
-    .text("KDP Puzzle Studio", region.x + region.width - 108, y, {
+    .text("Yogesh Negi", region.x + region.width - 108, y, {
       width: 92,
       align: "right"
     });
@@ -495,6 +665,82 @@ function drawSummaryCard(doc, box, palette, rows) {
     offsetY += 32;
     if (offsetY > box.y + box.height - 26) break;
   }
+}
+
+function renderBackCoverPage(doc, request, totalPuzzles, page) {
+  const palette = getPalette(request.type);
+  paintPageBase(doc, palette.soft);
+  drawOuterChrome(doc, palette, page);
+
+  const frameInset = Math.max(32, Math.min(42, page.width * 0.065));
+  const frame = {
+    x: frameInset,
+    y: frameInset,
+    width: page.width - frameInset * 2,
+    height: page.height - frameInset * 2
+  };
+  drawRoundedPanel(doc, frame, palette, 30, "#FFFFFF");
+
+  drawRibbon(doc, frame.x + 30, frame.y + 26, 182, 22, palette.primary, "AUTHOR YOGESH NEGI");
+
+  doc.fillColor(palette.dark)
+    .font("Helvetica-Bold")
+    .fontSize(28)
+    .text("Made for fresh puzzle moments.", frame.x + 30, frame.y + 78, {
+      width: 320,
+      lineGap: 2
+    });
+
+  doc.fillColor("#51607A")
+    .font("Helvetica")
+    .fontSize(12.5)
+    .text(
+      `This ${formatPuzzleType(request.type).toLowerCase()} edition includes ${totalPuzzles} print-ready pages designed for Amazon KDP interiors, family play, and clean at-home printing.`,
+      frame.x + 30,
+      frame.y + 144,
+      {
+        width: 308,
+        lineGap: 4
+      }
+    );
+
+  drawBackCoverArt(doc, {
+    x: frame.x + frame.width - 172,
+    y: frame.y + 148,
+    width: 120,
+    height: 150
+  }, palette, request.type);
+
+  drawSummaryCard(
+    doc,
+    {
+      x: frame.x + 30,
+      y: frame.y + 274,
+      width: 250,
+      height: 156
+    },
+    palette,
+    [
+      ["Edition", formatPuzzleType(request.type)],
+      ["Difficulty", capitalize(request.difficulty)],
+      ["Layout", `${request.layout.puzzlesPerPage} per page`],
+      ["Author", "Yogesh Negi"]
+    ]
+  );
+
+  doc.fillColor(palette.primary)
+    .font("Helvetica-Bold")
+    .fontSize(15)
+    .text("Designed for bright, friendly puzzle books.", frame.x + 30, frame.y + frame.height - 98, {
+      width: frame.width - 60
+    });
+
+  doc.fillColor("#5E6678")
+    .font("Helvetica")
+    .fontSize(11)
+    .text("Interior back page for print-safe exports and polished KDP-ready presentation.", frame.x + 30, frame.y + frame.height - 72, {
+      width: frame.width - 60
+    });
 }
 
 function drawCoverArt(doc, box, palette, type) {
@@ -521,16 +767,45 @@ function drawCoverArt(doc, box, palette, type) {
       }
     }
   } else if (type === "maze") {
-    const lineGap = Math.min(18, inner.width / 10);
-    let cursorX = inner.x + 8;
-    for (let i = 0; i < 8; i += 1) {
-      const y = inner.y + 8 + i * 24;
-      doc.strokeColor(palette.line).lineWidth(3).moveTo(cursorX, y).lineTo(cursorX + 52, y).stroke();
-      doc.moveTo(cursorX + 52, y).lineTo(cursorX + 52, y + 18).stroke();
-      cursorX = inner.x + 8 + ((i % 2) * lineGap);
+    const segmentWidth = Math.min(48, inner.width * 0.28);
+    for (let i = 0; i < 7; i += 1) {
+      const y = inner.y + 12 + i * 24;
+      const x = inner.x + 18 + (i % 2) * 22;
+      doc.strokeColor(palette.line).lineWidth(3).moveTo(x, y).lineTo(x + segmentWidth, y).stroke();
+      doc.moveTo(x + segmentWidth, y).lineTo(x + segmentWidth, y + 18).stroke();
     }
-    drawMarker(doc, inner.x + 16, inner.y + 18, "#14B889", "S", 8);
-    drawMarker(doc, inner.x + inner.width - 18, inner.y + inner.height - 54, palette.accent, "E", 8);
+    drawMarker(doc, inner.x + 26, inner.y + 18, "#14B889", "S", 8);
+    drawMarker(doc, inner.x + inner.width - 26, inner.y + inner.height - 44, palette.accent, "E", 8);
+  } else if (type === "wordsearch") {
+    const size = 6;
+    const cell = Math.min(28, (inner.width - 24) / size);
+    const total = size * cell;
+    const startX = inner.x + (inner.width - total) / 2;
+    const startY = inner.y + 12;
+
+    for (let row = 0; row < size; row += 1) {
+      for (let col = 0; col < size; col += 1) {
+        const x = startX + col * cell;
+        const y = startY + row * cell;
+        doc.save()
+          .roundedRect(x, y, cell - 4, cell - 4, 4)
+          .fill((row + col) % 4 === 0 ? palette.accent : (row + col) % 2 === 0 ? palette.soft : "#FFFFFF")
+          .restore();
+      }
+    }
+  } else if (type === "tictactoe") {
+    drawTicTacToeBoard(
+      doc,
+      {
+        x: inner.x + (inner.width - 88) / 2,
+        y: inner.y + 22,
+        size: 88
+      },
+      palette,
+      "X/O"
+    );
+    doc.save().circle(inner.x + 28, inner.y + inner.height - 52, 10).fillOpacity(0.16).fill(palette.primary).restore();
+    doc.save().circle(inner.x + inner.width - 30, inner.y + inner.height - 92, 14).fillOpacity(0.22).fill(palette.accent).restore();
   } else {
     const cols = 5;
     const rows = 6;
@@ -552,15 +827,70 @@ function drawCoverArt(doc, box, palette, type) {
   doc.fillColor(palette.primary)
     .font("Helvetica-Bold")
     .fontSize(16)
-    .text(`${capitalize(type)} Edition`, box.x + 20, box.y + box.height - 44, {
+    .text(`${formatPuzzleType(type)} Edition`, box.x + 20, box.y + box.height - 44, {
       width: box.width - 40,
       align: "left"
     });
 }
 
-function drawOuterChrome(doc, palette) {
+function drawBackCoverArt(doc, box, palette, type) {
+  const inner = box;
+
+  if (type === "maze") {
+    const segmentWidth = Math.min(44, inner.width * 0.28);
+    for (let i = 0; i < 6; i += 1) {
+      const y = inner.y + 14 + i * 24;
+      const x = inner.x + 16 + (i % 2) * 18;
+      doc.strokeColor(palette.line).lineWidth(3).moveTo(x, y).lineTo(x + segmentWidth, y).stroke();
+      doc.moveTo(x + segmentWidth, y).lineTo(x + segmentWidth, y + 16).stroke();
+    }
+  } else if (type === "wordsearch") {
+    const size = 5;
+    const cell = Math.min(26, (inner.width - 20) / size);
+    const total = size * cell;
+    const startX = inner.x + (inner.width - total) / 2;
+    const startY = inner.y + 16;
+    for (let row = 0; row < size; row += 1) {
+      for (let col = 0; col < size; col += 1) {
+        doc.save()
+          .roundedRect(startX + col * cell, startY + row * cell, cell - 4, cell - 4, 4)
+          .fill((row + col) % 2 === 0 ? palette.soft : "#FFFFFF")
+          .restore();
+      }
+    }
+  } else if (type === "tictactoe") {
+    drawTicTacToeBoard(
+      doc,
+      {
+        x: inner.x + (inner.width - 88) / 2,
+        y: inner.y + 24,
+        size: 88
+      },
+      palette,
+      "FUN"
+    );
+  } else if (type === "sudoku") {
+    return;
+  } else {
+    const cols = 4;
+    const rows = 5;
+    const cell = 24;
+    const startX = inner.x + (inner.width - cols * cell) / 2;
+    const startY = inner.y + 18;
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        doc.save()
+          .roundedRect(startX + col * cell, startY + row * cell, cell - 4, cell - 4, 4)
+          .fill((row + col) % 3 === 0 ? palette.accent : "#FFFFFF")
+          .restore();
+      }
+    }
+  }
+}
+
+function drawOuterChrome(doc, palette, page) {
   doc.save().circle(10, 58, 62).fillOpacity(0.16).fill(palette.primary).restore();
-  doc.save().circle(PAGE.width - 22, PAGE.height - 26, 58).fillOpacity(0.12).fill(palette.accent).restore();
+  doc.save().circle(page.width - 22, page.height - 26, 58).fillOpacity(0.12).fill(palette.accent).restore();
 }
 
 function drawRoundedPanel(doc, box, palette, radius, fill = "#FFFFFF") {
@@ -599,11 +929,34 @@ function drawMarker(doc, x, y, color, label, radius = 9) {
     });
 }
 
-function paintPageBase(doc, color) {
-  doc.save().rect(0, 0, PAGE.width, PAGE.height).fill(color).restore();
+function drawTicTacToeBoard(doc, box, palette, label) {
+  const cell = box.size / 3;
+  doc.save()
+    .roundedRect(box.x - 8, box.y - 8, box.size + 16, box.size + 16, 18)
+    .fillOpacity(0.28)
+    .fill(palette.soft)
+    .restore();
+
+  doc.strokeColor(palette.line).lineWidth(Math.max(1.5, box.size * 0.025));
+  for (let line = 1; line <= 2; line += 1) {
+    doc.moveTo(box.x + line * cell, box.y).lineTo(box.x + line * cell, box.y + box.size).stroke();
+    doc.moveTo(box.x, box.y + line * cell).lineTo(box.x + box.size, box.y + line * cell).stroke();
+  }
+
+  doc.fillColor(palette.primary)
+    .font("Helvetica-Bold")
+    .fontSize(Math.max(8, box.size * 0.12))
+    .text(String(label), box.x, box.y + box.size + 4, {
+      width: box.size,
+      align: "center"
+    });
 }
 
-function getRegion(doc, puzzlesPerPage, index) {
+function paintPageBase(doc, color) {
+  doc.save().rect(0, 0, doc.page.width, doc.page.height).fill(color).restore();
+}
+
+function getRegion(doc, puzzlesPerPage, index, page) {
   const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   const pageHeight = doc.page.height - doc.page.margins.top - doc.page.margins.bottom - 24;
   const originX = doc.page.margins.left;
@@ -656,10 +1009,48 @@ function capitalize(value) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function formatPuzzleType(value) {
+  if (value === "wordsearch") return "Word Search";
+  if (value === "tictactoe") return "Tic-Tac-Toe";
+  return capitalize(value);
+}
+
+function getPage(request) {
+  const [width, height] = request.layout.pageSize;
+  return {
+    width,
+    height
+  };
+}
+
 function getPalette(type) {
   return PALETTES[type] || PALETTES.sudoku;
 }
 
 function measureChipWidth(text) {
   return Math.max(52, text.length * 5.8 + 16);
+}
+
+function drawWordList(doc, words, box, palette) {
+  drawRoundedPanel(doc, box, palette, 16, "#FFFFFF");
+  drawRibbon(doc, box.x + 14, box.y + 12, Math.min(112, box.width - 28), 18, palette.primary, "FIND THESE");
+
+  let cursorX = box.x + 14;
+  let cursorY = box.y + 42;
+  const maxRight = box.x + box.width - 14;
+
+  words.forEach((word) => {
+    const width = Math.max(56, word.length * 7 + 18);
+    if (cursorX + width > maxRight) {
+      cursorX = box.x + 14;
+      cursorY += 24;
+    }
+
+    doc.save().roundedRect(cursorX, cursorY, width, 18, 999).fillAndStroke(palette.soft, palette.line).restore();
+    doc.fillColor(palette.dark).font("Helvetica-Bold").fontSize(8).text(word, cursorX, cursorY + 5, {
+      width,
+      align: "center"
+    });
+    cursorX += width + 8;
+  });
 }

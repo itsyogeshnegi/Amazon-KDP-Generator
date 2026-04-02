@@ -1,4 +1,10 @@
-import { SudokuPreview, MazePreview, CrosswordPreview } from "./PuzzlePreviewTypes.jsx";
+import {
+  SudokuPreview,
+  MazePreview,
+  CrosswordPreview,
+  WordSearchPreview,
+  TicTacToePreview
+} from "./PuzzlePreviewTypes.jsx";
 
 export default function PreviewPanel({ preview, loading }) {
   return (
@@ -18,7 +24,7 @@ export default function PreviewPanel({ preview, loading }) {
               <div>
                 <strong>{item.meta.title}</strong>
                 <div className="preview-meta">
-                  <span className={`type-chip type-chip-${item.type}`}>{item.type}</span>
+                  <span className={`type-chip type-chip-${item.type}`}>{formatType(item.type)}</span>
                   <span className="meta-chip">{item.difficulty}</span>
                   {item.meta.theme ? <span className="meta-chip">{item.meta.theme}</span> : null}
                 </div>
@@ -28,9 +34,17 @@ export default function PreviewPanel({ preview, loading }) {
             {item.type === "sudoku" ? <SudokuPreview puzzle={item.puzzle} /> : null}
             {item.type === "maze" ? <MazePreview puzzle={item.puzzle} /> : null}
             {item.type === "crossword" ? <CrosswordPreview puzzle={item.puzzle} /> : null}
+            {item.type === "wordsearch" ? <WordSearchPreview puzzle={item.puzzle} /> : null}
+            {item.type === "tictactoe" ? <TicTacToePreview puzzle={item.puzzle} /> : null}
           </article>
         ))}
       </div>
     </section>
   );
+}
+
+function formatType(type) {
+  if (type === "wordsearch") return "Word Search";
+  if (type === "tictactoe") return "Tic-Tac-Toe";
+  return type;
 }

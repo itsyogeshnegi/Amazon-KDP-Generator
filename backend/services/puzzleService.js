@@ -2,17 +2,38 @@ import { randomUUID } from "crypto";
 import { generateSudoku } from "./generators/sudokuGenerator.js";
 import { generateMaze } from "./generators/mazeGenerator.js";
 import { generateCrossword } from "./generators/crosswordGenerator.js";
+import { generateWordSearch } from "./generators/wordsearchGenerator.js";
+import { generateTicTacToe } from "./generators/tictactoeGenerator.js";
 import { createPdfBook } from "./pdf/pdfService.js";
 import { ensureStorageReady, writeGenerationManifest } from "./storage/fileStore.js";
 
-const VALID_TYPES = new Set(["sudoku", "maze", "crossword"]);
+const VALID_TYPES = new Set(["sudoku", "maze", "crossword", "wordsearch", "tictactoe"]);
 const VALID_DIFFICULTIES = new Set(["easy", "medium", "hard"]);
 const VALID_LAYOUTS = new Set([1, 2, 4]);
+const BOOK_SIZES = {
+  "8.5x11": {
+    pageSize: [612, 792],
+    label: "8.5 x 11",
+    margins: { top: 54, right: 54, bottom: 54, left: 54 }
+  },
+  "8x10": {
+    pageSize: [576, 720],
+    label: "8 x 10",
+    margins: { top: 48, right: 48, bottom: 48, left: 48 }
+  },
+  "6x9": {
+    pageSize: [432, 648],
+    label: "6 x 9",
+    margins: { top: 40, right: 40, bottom: 40, left: 40 }
+  }
+};
 
 const generatorMap = {
   sudoku: generateSudoku,
   maze: generateMaze,
-  crossword: generateCrossword
+  crossword: generateCrossword,
+  wordsearch: generateWordSearch,
+  tictactoe: generateTicTacToe
 };
 
 /**
@@ -23,6 +44,7 @@ export function validateGenerateRequest(body, { preview }) {
   const difficulty = body?.difficulty;
   const count = Number(body?.count);
   const layoutValue = Number(body?.layout?.puzzlesPerPage ?? body?.layout ?? 1);
+  const bookSizeValue = body?.bookSize || "8.5x11";
   const includeCoverPage = Boolean(body?.includeCoverPage ?? true);
   const theme = body?.theme || "general";
 
@@ -42,20 +64,23 @@ export function validateGenerateRequest(body, { preview }) {
     throw createHttpError(400, "Layout must be 1, 2, or 4 puzzles per page.");
   }
 
+  if (!BOOK_SIZES[bookSizeValue]) {
+    throw createHttpError(400, "Book size must be 8.5x11, 8x10, or 6x9.");
+  }
+
+  const sizeConfig = BOOK_SIZES[bookSizeValue];
+
   return {
     type,
     difficulty,
     count: preview ? Math.min(count, 2) : count,
     requestedCount: count,
+    bookSize: bookSizeValue,
     layout: {
       puzzlesPerPage: layoutValue,
-      pageSize: "LETTER",
-      margins: {
-        top: 54,
-        right: 54,
-        bottom: 54,
-        left: 54
-      }
+      pageSize: sizeConfig.pageSize,
+      pageSizeLabel: sizeConfig.label,
+      margins: sizeConfig.margins
     },
     includeCoverPage,
     theme

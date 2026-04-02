@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 
 const themes = ["general", "animals", "tech", "space"];
+const bookSizes = [
+  { value: "8.5x11", label: "8.5 x 11 in" },
+  { value: "8x10", label: "8 x 10 in" },
+  { value: "6x9", label: "6 x 9 in" }
+];
 
 export default function PuzzleForm({
   value,
@@ -47,6 +52,8 @@ export default function PuzzleForm({
           <option value="sudoku">Sudoku</option>
           <option value="maze">Maze</option>
           <option value="crossword">Crossword</option>
+          <option value="wordsearch">Word Search</option>
+          <option value="tictactoe">Tic-Tac-Toe</option>
         </select>
       </div>
 
@@ -92,12 +99,29 @@ export default function PuzzleForm({
         </div>
 
         <div className="field">
-          <label htmlFor="theme">Crossword theme</label>
+          <label htmlFor="bookSize">Book size</label>
+          <select
+            id="bookSize"
+            value={form.bookSize}
+            onChange={(event) => updateField("bookSize", event.target.value)}
+          >
+            {bookSizes.map((size) => (
+              <option key={size.value} value={size.value}>
+                {size.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="field-grid">
+        <div className="field">
+          <label htmlFor="theme">Theme</label>
           <select
             id="theme"
             value={form.theme}
             onChange={(event) => updateField("theme", event.target.value)}
-            disabled={form.type !== "crossword"}
+            disabled={!["crossword", "wordsearch"].includes(form.type)}
           >
             {themes.map((theme) => (
               <option key={theme} value={theme}>
@@ -114,7 +138,7 @@ export default function PuzzleForm({
           checked={form.includeCoverPage}
           onChange={(event) => updateField("includeCoverPage", event.target.checked)}
         />
-        Include KDP cover page
+        Include front and back cover pages
       </label>
 
       <div className="actions">

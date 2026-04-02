@@ -393,6 +393,16 @@ button:disabled {
   border-color: rgba(90, 103, 255, 0.22);
 }
 
+.preview-card-wordsearch {
+  background: linear-gradient(180deg, #fff9ea, #f4ffe3);
+  border-color: rgba(137, 185, 47, 0.28);
+}
+
+.preview-card-tictactoe {
+  background: linear-gradient(180deg, #fff4fb, #ffe3f2);
+  border-color: rgba(255, 91, 163, 0.22);
+}
+
 .preview-header {
   display: flex;
   justify-content: space-between;
@@ -437,6 +447,16 @@ button:disabled {
 .type-chip-crossword {
   background: #7182ff;
   color: #f8faff;
+}
+
+.type-chip-wordsearch {
+  background: #a9cf3f;
+  color: #224100;
+}
+
+.type-chip-tictactoe {
+  background: #ff5fa2;
+  color: #ffffff;
 }
 
 .meta-chip,
@@ -532,6 +552,85 @@ button:disabled {
 .crossword-preview {
   display: grid;
   gap: 16px;
+}
+
+.wordsearch-preview {
+  display: grid;
+  gap: 14px;
+}
+
+.wordsearch-grid {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  border-radius: 20px;
+}
+
+.wordsearch-grid {
+  background: linear-gradient(135deg, #efffd7, #fff6c7);
+}
+
+.wordsearch-cell {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-height: 18px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.84);
+  color: #46610d;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.wordsearch-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wordsearch-list span {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(70, 97, 13, 0.12);
+  color: #46610d;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.tictactoe-preview {
+  display: grid;
+  gap: 14px;
+}
+
+.tictactoe-board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  gap: 12px;
+}
+
+.tictactoe-mini-board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 8px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #ffd5e8, #fff3f9);
+  box-shadow: inset 0 0 0 1px rgba(255, 95, 162, 0.12);
+}
+
+.tictactoe-cell {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(255, 95, 162, 0.14);
+}
+
+.tictactoe-note {
+  margin-bottom: 0;
+  color: #6f3c58;
+  font-size: 0.88rem;
+  font-weight: 700;
 }
 
 .crossword-grid {

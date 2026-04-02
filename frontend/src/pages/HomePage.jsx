@@ -13,6 +13,7 @@ const initialForm = {
   difficulty: "easy",
   count: 50,
   layout: 1,
+  bookSize: "8.5x11",
   theme: "general",
   includeCoverPage: true
 };
@@ -62,14 +63,17 @@ export default function HomePage() {
           <p className="eyebrow">Amazon KDP-ready export workflow</p>
           <h1>Puzzle book generator</h1>
           <p className="lead">
-            Build printable Sudoku, Maze, and Crossword books with preview,
-            numbering, cover page support, and answer keys in a brighter,
-            more premium creator workspace.
+            Build printable Sudoku, Maze, Crossword, Word Search, and
+            Tic-Tac-Toe books with preview, numbering, front and back cover
+            support, and answer keys in a brighter, more premium creator
+            workspace.
           </p>
           <div className="hero-badges">
             <span>Sudoku Studio</span>
             <span>Maze Lab</span>
             <span>Crossword Press</span>
+            <span>Word Search Club</span>
+            <span>Tic-Tac-Toe Corner</span>
           </div>
         </div>
         <div className="hero-art" aria-hidden="true">

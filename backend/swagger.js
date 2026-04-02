@@ -21,7 +21,7 @@ const swaggerDefinition = {
         properties: {
           type: {
             type: "string",
-            enum: ["sudoku", "maze", "crossword"]
+            enum: ["sudoku", "maze", "crossword", "wordsearch", "tictactoe"]
           },
           difficulty: {
             type: "string",
@@ -52,6 +52,11 @@ const swaggerDefinition = {
           theme: {
             type: "string",
             example: "tech"
+          },
+          bookSize: {
+            type: "string",
+            enum: ["8.5x11", "8x10", "6x9"],
+            example: "8.5x11"
           },
           includeCoverPage: {
             type: "boolean"

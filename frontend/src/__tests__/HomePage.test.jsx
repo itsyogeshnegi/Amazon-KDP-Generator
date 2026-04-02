@@ -18,5 +18,7 @@ describe("HomePage", () => {
     render(<HomePage />);
     expect(screen.getByText(/Puzzle book generator/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Generate & Download PDF/i })).toBeInTheDocument();
+    expect(screen.getByText(/Word Search Club/i)).toBeInTheDocument();
+    expect(screen.getByText(/Tic-Tac-Toe Corner/i)).toBeInTheDocument();
   });
 });

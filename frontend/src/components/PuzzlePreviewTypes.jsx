@@ -97,3 +97,41 @@ export function CrosswordPreview({ puzzle }) {
     </div>
   );
 }
+
+export function WordSearchPreview({ puzzle }) {
+  return (
+    <div className="wordsearch-preview">
+      <div className="wordsearch-grid" style={{ gridTemplateColumns: `repeat(${puzzle.size}, 1fr)` }}>
+        {puzzle.grid.flatMap((row, rowIndex) =>
+          row.map((letter, colIndex) => (
+            <div key={`${rowIndex}-${colIndex}`} className="wordsearch-cell">
+              {letter}
+            </div>
+          ))
+        )}
+      </div>
+      <div className="wordsearch-list">
+        {puzzle.words.map((word) => (
+          <span key={word}>{word}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function TicTacToePreview({ puzzle }) {
+  return (
+    <div className="tictactoe-preview">
+      <div className="tictactoe-board-grid">
+        {puzzle.boards.map((board) => (
+          <div key={board.id} className="tictactoe-mini-board">
+            {Array.from({ length: 9 }, (_value, index) => (
+              <div key={`${board.id}-${index}`} className="tictactoe-cell"></div>
+            ))}
+          </div>
+        ))}
+      </div>
+      <p className="tictactoe-note">{puzzle.subtitle}</p>
+    </div>
+  );
+}
