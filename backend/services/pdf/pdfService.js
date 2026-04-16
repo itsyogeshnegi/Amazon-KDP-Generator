@@ -9,6 +9,8 @@ const backendRoot = path.resolve(__dirname, "../..");
 const fontsDir = path.join(backendRoot, "assets", "fonts");
 const REGULAR_FONT_PATH = path.join(fontsDir, "arial.ttf");
 const BOLD_FONT_PATH = path.join(fontsDir, "arialbd.ttf");
+const FONT_REGULAR = "BookSans";
+const FONT_BOLD = "BookSans-Bold";
 const BLEED_INCHES = 0.125;
 const SAFE_MARGIN_INCHES = 0.25;
 const WHITE_PAPER_SPINE_PER_PAGE = 0.002252;
@@ -138,13 +140,25 @@ async function renderPdf(filePath, options, render) {
 }
 
 function registerEmbeddedFonts(doc) {
-  if (fs.existsSync(REGULAR_FONT_PATH)) {
-    doc.registerFont("Helvetica", REGULAR_FONT_PATH);
+  if (!fs.existsSync(REGULAR_FONT_PATH) || !fs.existsSync(BOLD_FONT_PATH)) {
+    throw new Error(
+      `Embedded PDF font files are missing. Expected ${REGULAR_FONT_PATH} and ${BOLD_FONT_PATH}.`
+    );
   }
 
-  if (fs.existsSync(BOLD_FONT_PATH)) {
-    doc.registerFont("Helvetica-Bold", BOLD_FONT_PATH);
-  }
+  doc.registerFont(FONT_REGULAR, REGULAR_FONT_PATH);
+  doc.registerFont(FONT_BOLD, BOLD_FONT_PATH);
+
+  const originalFont = doc.font.bind(doc);
+  doc.font = (name, ...args) => {
+    const mappedName = name === "Helvetica-Bold"
+      ? FONT_BOLD
+      : name === "Helvetica"
+        ? FONT_REGULAR
+        : name;
+
+    return originalFont(mappedName, ...args);
+  };
 }
 
 function getInteriorPageCount(puzzles, request) {
@@ -239,7 +253,6 @@ function renderWraparoundCover(doc, request, totalPuzzles, cover) {
 function renderExteriorFrontPanel(doc, request, totalPuzzles, box, padding, palette, cover) {
   const inner = inset(box, padding);
   const title = `${formatPuzzleType(request.type)} Book`;
-  const subtitle = `Created by Yogesh Negi`;
   const titleSize = Math.max(22, Math.min(38, box.width * 0.12));
   const subtitleSize = Math.max(11, Math.min(16, box.width * 0.045));
 
@@ -263,18 +276,11 @@ function renderExteriorFrontPanel(doc, request, totalPuzzles, box, padding, pale
 
   doc.fillColor("#4A5570")
     .font("Helvetica")
-    .fontSize(subtitleSize)
-    .text(subtitle, inner.x, doc.y + 6, {
-      width: inner.width
-    });
-
-  doc.fillColor("#4A5570")
-    .font("Helvetica")
     .fontSize(Math.max(10, subtitleSize - 0.5))
     .text(
       `${capitalize(request.difficulty)} edition with ${totalPuzzles} puzzles sized for ${cover.pageSizeLabel} interiors.`,
       inner.x,
-      doc.y + 18,
+      doc.y + 12,
       { width: inner.width, lineGap: 4 }
     );
 
@@ -328,20 +334,13 @@ function renderExteriorBackPanel(doc, request, totalPuzzles, box, padding, palet
 
   drawThinRule(doc, inner.x, box.y + box.height - padding - 86, inner.width, palette.line);
 
-  doc.fillColor(palette.primary)
-    .font("Helvetica-Bold")
-    .fontSize(Math.max(11, Math.min(15, box.width * 0.04)))
-    .text("Author: Yogesh Negi", inner.x, box.y + box.height - padding - 70, {
-      width: inner.width
-    });
-
   doc.fillColor("#5E6678")
     .font("Helvetica")
     .fontSize(Math.max(9, Math.min(12, box.width * 0.034)))
     .text(
       `White paper | Bleed cover | ${cover.pageCount} interior pages`,
       inner.x,
-      box.y + box.height - padding - 48,
+      box.y + box.height - padding - 62,
       { width: inner.width }
     );
 
@@ -375,13 +374,6 @@ function renderExteriorSpine(doc, request, box, palette, cover) {
         align: "center"
       }
     );
-  doc.font("Helvetica")
-    .fontSize(Math.max(7, Math.min(10, box.width * 0.24)))
-    .fillColor("#51607A")
-    .text("Yogesh Negi", 0, 18, {
-      width: box.height - 48,
-      align: "center"
-    });
   doc.restore();
 }
 
@@ -428,7 +420,7 @@ function renderCoverPage(doc, request, totalPuzzles, page) {
         height: inner.height - footerHeight - 56 * scale
       };
 
-  // Author badge — pill with gradient feel
+  // Top badge
   drawPremiumRibbon(doc, left.x, left.y + 8, Math.min(224, left.width), 24, palette.primary, "✦ YOGESH NEGI");
 
   // Title area
@@ -1106,10 +1098,6 @@ function drawFooterTag(doc, region, palette, label, compact) {
     .fontSize(compact ? 7.5 : 9)
     .text(label, region.x + 14, y);
 
-  doc.fillColor(palette.primary)
-    .font("Helvetica-Bold")
-    .fontSize(compact ? 7.5 : 9)
-    .text("Yogesh Negi", region.x + region.width - 108, y, { width: 92, align: "right" });
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1171,7 +1159,7 @@ function renderBackCoverPage(doc, request, totalPuzzles, page) {
   drawDecorativeFrame(doc, frame, palette);
   drawRoundedPanel(doc, frame, palette, Math.max(20, 30 * scale), "#FFFFFF");
 
-  drawPremiumRibbon(doc, frame.x + 30, frame.y + 26, 190, 24, palette.primary, "✦ YOGESH NEGI");
+  drawPremiumRibbon(doc, frame.x + 30, frame.y + 26, 190, 24, palette.primary, "BACK PAGE");
 
   doc.fillColor(palette.dark)
     .font("Helvetica-Bold")
@@ -1222,8 +1210,7 @@ function renderBackCoverPage(doc, request, totalPuzzles, page) {
     [
       ["Edition", formatPuzzleType(request.type)],
       ["Difficulty", capitalize(request.difficulty)],
-      ["Layout", `${request.layout.puzzlesPerPage} per page`],
-      ["Author", "Yogesh Negi"]
+      ["Layout", `${request.layout.puzzlesPerPage} per page`]
     ],
     scale
   );
