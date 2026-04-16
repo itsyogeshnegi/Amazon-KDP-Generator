@@ -15,7 +15,9 @@ export async function generatePuzzleBook(payload) {
 
   return {
     ...response,
-    fileUrl: buildApiUrl(response.fileUrl)
+    fileUrl: buildApiUrl(response.fileUrl),
+    interiorFileUrl: buildApiUrl(response.interiorFileUrl || response.fileUrl),
+    coverFileUrl: response.coverFileUrl ? buildApiUrl(response.coverFileUrl) : null
   };
 }
 

@@ -6,6 +6,12 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const backendRoot = path.resolve(__dirname, "../..");
+const fontsDir = path.join(backendRoot, "assets", "fonts");
+const REGULAR_FONT_PATH = path.join(fontsDir, "arial.ttf");
+const BOLD_FONT_PATH = path.join(fontsDir, "arialbd.ttf");
+const BLEED_INCHES = 0.125;
+const SAFE_MARGIN_INCHES = 0.25;
+const WHITE_PAPER_SPINE_PER_PAGE = 0.002252;
 
 // ─────────────────────────────────────────────────────────────
 // PREMIUM PALETTES — richer, more saturated, with glow tones
@@ -78,36 +84,305 @@ const PALETTES = {
 // ─────────────────────────────────────────────────────────────
 export async function createPdfBook({ puzzles, request, fileName }) {
   const downloadsDir = path.join(backendRoot, "downloads");
-  const filePath = path.join(downloadsDir, fileName);
+  const interiorFilePath = path.join(downloadsDir, fileName);
+  const coverFileName = fileName.replace("-interior-", "-cover-");
+  const coverFilePath = path.join(downloadsDir, coverFileName);
   const page = getPage(request);
-  const doc = new PDFDocument({
+  const interiorPageCount = getInteriorPageCount(puzzles, request);
+
+  await renderPdf(interiorFilePath, {
     size: request.layout.pageSize,
     margins: request.layout.margins
+  }, (doc) => {
+    renderPuzzlePages(doc, puzzles, request.layout.puzzlesPerPage, request, page);
+    doc.addPage();
+    renderAnswerSection(doc, puzzles, request, page);
   });
+
+  let coverPath = null;
+  if (request.includeCoverPage) {
+    const cover = getCoverGeometry(request, interiorPageCount);
+    await renderPdf(
+      coverFilePath,
+      {
+        size: [cover.totalWidthPts, cover.totalHeightPts],
+        margins: { top: 0, right: 0, bottom: 0, left: 0 }
+      },
+      (doc) => {
+        renderWraparoundCover(doc, request, puzzles.length, cover);
+      }
+    );
+    coverPath = coverFilePath;
+  }
+
+  return {
+    filePath: interiorFilePath,
+    coverPath,
+    interiorPageCount,
+    coverFileName: request.includeCoverPage ? coverFileName : null
+  };
+}
+
+async function renderPdf(filePath, options, render) {
+  const doc = new PDFDocument(options);
+  registerEmbeddedFonts(doc);
 
   await new Promise((resolve, reject) => {
     const stream = fs.createWriteStream(filePath);
     stream.on("finish", resolve);
     stream.on("error", reject);
     doc.pipe(stream);
-
-    if (request.includeCoverPage) {
-      renderCoverPage(doc, request, puzzles.length, page);
-      doc.addPage();
-    }
-
-    renderPuzzlePages(doc, puzzles, request.layout.puzzlesPerPage, request, page);
-    doc.addPage();
-    renderAnswerSection(doc, puzzles, request, page);
-
-    if (request.includeCoverPage) {
-      doc.addPage();
-      renderBackCoverPage(doc, request, puzzles.length, page);
-    }
+    render(doc);
     doc.end();
   });
+}
 
-  return { filePath };
+function registerEmbeddedFonts(doc) {
+  if (fs.existsSync(REGULAR_FONT_PATH)) {
+    doc.registerFont("Helvetica", REGULAR_FONT_PATH);
+  }
+
+  if (fs.existsSync(BOLD_FONT_PATH)) {
+    doc.registerFont("Helvetica-Bold", BOLD_FONT_PATH);
+  }
+}
+
+function getInteriorPageCount(puzzles, request) {
+  const puzzlePages = Math.ceil(puzzles.length / request.layout.puzzlesPerPage);
+  const answerPages = request.type === "tictactoe" ? 1 : puzzles.length + 1;
+  return puzzlePages + answerPages;
+}
+
+function getCoverGeometry(request, interiorPageCount) {
+  const [trimWidthPts, trimHeightPts] = request.layout.pageSize;
+  const bleedPts = request.cover?.bleed ? inchesToPoints(BLEED_INCHES) : 0;
+  const safeMarginPts = inchesToPoints(SAFE_MARGIN_INCHES);
+  const spinePerPage = request.cover?.paperType === "white"
+    ? WHITE_PAPER_SPINE_PER_PAGE
+    : WHITE_PAPER_SPINE_PER_PAGE;
+  const spineWidthPts = inchesToPoints(interiorPageCount * spinePerPage);
+  const totalWidthPts = trimWidthPts * 2 + spineWidthPts + bleedPts * 2;
+  const totalHeightPts = trimHeightPts + bleedPts * 2;
+
+  return {
+    trimWidthPts,
+    trimHeightPts,
+    bleedPts,
+    safeMarginPts,
+    spineWidthPts,
+    totalWidthPts,
+    totalHeightPts,
+    backX: bleedPts,
+    spineX: bleedPts + trimWidthPts,
+    frontX: bleedPts + trimWidthPts + spineWidthPts,
+    contentY: bleedPts,
+    pageSizeLabel: request.layout.pageSizeLabel,
+    pageCount: interiorPageCount
+  };
+}
+
+function renderWraparoundCover(doc, request, totalPuzzles, cover) {
+  const palette = getPalette(request.type);
+  const page = { width: cover.totalWidthPts, height: cover.totalHeightPts };
+  const backBox = {
+    x: cover.backX,
+    y: cover.contentY,
+    width: cover.trimWidthPts,
+    height: cover.trimHeightPts
+  };
+  const frontBox = {
+    x: cover.frontX,
+    y: cover.contentY,
+    width: cover.trimWidthPts,
+    height: cover.trimHeightPts
+  };
+  const spineBox = {
+    x: cover.spineX,
+    y: cover.contentY,
+    width: cover.spineWidthPts,
+    height: cover.trimHeightPts
+  };
+  const contentPadding = Math.max(cover.safeMarginPts, Math.min(36, cover.trimWidthPts * 0.08));
+
+  paintPageBase(doc, palette.soft);
+  drawDiagonalStripes(doc, palette, page);
+  drawOuterChrome(doc, palette, page);
+
+  doc.save()
+    .rect(backBox.x, backBox.y, backBox.width, backBox.height)
+    .fillAndStroke("#FFFFFF", palette.line)
+    .restore();
+  doc.save()
+    .rect(frontBox.x, frontBox.y, frontBox.width, frontBox.height)
+    .fillAndStroke("#FFFFFF", palette.line)
+    .restore();
+
+  doc.save()
+    .rect(spineBox.x, spineBox.y, spineBox.width, spineBox.height)
+    .fillOpacity(0.9)
+    .fill(palette.softAlt || palette.soft)
+    .restore();
+  doc.save()
+    .moveTo(spineBox.x, spineBox.y)
+    .lineTo(spineBox.x, spineBox.y + spineBox.height)
+    .moveTo(spineBox.x + spineBox.width, spineBox.y)
+    .lineTo(spineBox.x + spineBox.width, spineBox.y + spineBox.height)
+    .lineWidth(0.8)
+    .stroke(palette.line)
+    .restore();
+
+  renderExteriorBackPanel(doc, request, totalPuzzles, backBox, contentPadding, palette, cover);
+  renderExteriorFrontPanel(doc, request, totalPuzzles, frontBox, contentPadding, palette, cover);
+  renderExteriorSpine(doc, request, spineBox, palette, cover);
+}
+
+function renderExteriorFrontPanel(doc, request, totalPuzzles, box, padding, palette, cover) {
+  const inner = inset(box, padding);
+  const title = `${formatPuzzleType(request.type)} Book`;
+  const subtitle = `Created by Yogesh Negi`;
+  const titleSize = Math.max(22, Math.min(38, box.width * 0.12));
+  const subtitleSize = Math.max(11, Math.min(16, box.width * 0.045));
+
+  drawPremiumRibbon(
+    doc,
+    inner.x,
+    inner.y + 6,
+    Math.min(inner.width, box.width * 0.62),
+    24,
+    palette.primary,
+    "KDP READY COVER"
+  );
+
+  doc.fillColor(palette.dark)
+    .font("Helvetica-Bold")
+    .fontSize(titleSize)
+    .text(title, inner.x, inner.y + 52, {
+      width: inner.width,
+      lineGap: 4
+    });
+
+  doc.fillColor("#4A5570")
+    .font("Helvetica")
+    .fontSize(subtitleSize)
+    .text(subtitle, inner.x, doc.y + 6, {
+      width: inner.width
+    });
+
+  doc.fillColor("#4A5570")
+    .font("Helvetica")
+    .fontSize(Math.max(10, subtitleSize - 0.5))
+    .text(
+      `${capitalize(request.difficulty)} edition with ${totalPuzzles} puzzles sized for ${cover.pageSizeLabel} interiors.`,
+      inner.x,
+      doc.y + 18,
+      { width: inner.width, lineGap: 4 }
+    );
+
+  const artBox = {
+    x: inner.x,
+    y: box.y + box.height * 0.44,
+    width: inner.width,
+    height: Math.max(180, box.height * 0.34)
+  };
+  drawCoverArt(doc, artBox, palette, request.type);
+
+  doc.fillColor(palette.primary)
+    .font("Helvetica-Bold")
+    .fontSize(Math.max(12, subtitleSize))
+    .text("Puzzle book manuscript cover", inner.x, box.y + box.height - padding - 32, {
+      width: inner.width
+    });
+}
+
+function renderExteriorBackPanel(doc, request, totalPuzzles, box, padding, palette, cover) {
+  const inner = inset(box, padding);
+
+  drawPremiumRibbon(
+    doc,
+    inner.x,
+    inner.y + 6,
+    Math.min(inner.width * 0.58, 180),
+    24,
+    palette.primary,
+    "BACK COVER"
+  );
+
+  doc.fillColor(palette.dark)
+    .font("Helvetica-Bold")
+    .fontSize(Math.max(20, Math.min(30, box.width * 0.08)))
+    .text("Designed for Amazon KDP paperback publishing.", inner.x, inner.y + 52, {
+      width: inner.width,
+      lineGap: 4
+    });
+
+  const blurbY = doc.y + 18;
+  doc.fillColor("#4A5570")
+    .font("Helvetica")
+    .fontSize(Math.max(10.5, Math.min(14, box.width * 0.04)))
+    .text(
+      `This ${formatPuzzleType(request.type).toLowerCase()} collection includes ${totalPuzzles} print-ready pages, structured answer sections, and trim-size-aware layouts for ${cover.pageSizeLabel} paperback interiors.`,
+      inner.x,
+      blurbY,
+      { width: inner.width, lineGap: 5 }
+    );
+
+  drawThinRule(doc, inner.x, box.y + box.height - padding - 86, inner.width, palette.line);
+
+  doc.fillColor(palette.primary)
+    .font("Helvetica-Bold")
+    .fontSize(Math.max(11, Math.min(15, box.width * 0.04)))
+    .text("Author: Yogesh Negi", inner.x, box.y + box.height - padding - 70, {
+      width: inner.width
+    });
+
+  doc.fillColor("#5E6678")
+    .font("Helvetica")
+    .fontSize(Math.max(9, Math.min(12, box.width * 0.034)))
+    .text(
+      `White paper | Bleed cover | ${cover.pageCount} interior pages`,
+      inner.x,
+      box.y + box.height - padding - 48,
+      { width: inner.width }
+    );
+
+  const barcodeBox = {
+    x: box.x + box.width - padding - 108,
+    y: box.y + box.height - padding - 108,
+    width: 96,
+    height: 72
+  };
+  doc.save().rect(barcodeBox.x, barcodeBox.y, barcodeBox.width, barcodeBox.height).fill("#FFFFFF").restore();
+  doc.save().rect(barcodeBox.x, barcodeBox.y, barcodeBox.width, barcodeBox.height).lineWidth(0.8).stroke("#D7D7D7").restore();
+}
+
+function renderExteriorSpine(doc, request, box, palette, cover) {
+  if (box.width < 18) {
+    return;
+  }
+
+  doc.save();
+  doc.translate(box.x + box.width / 2, box.y + box.height - 24);
+  doc.rotate(-90);
+  doc.fillColor(palette.dark)
+    .font("Helvetica-Bold")
+    .fontSize(Math.max(8, Math.min(14, box.width * 0.38)))
+    .text(
+      `${formatPuzzleType(request.type)} Book`,
+      0,
+      0,
+      {
+        width: box.height - 48,
+        align: "center"
+      }
+    );
+  doc.font("Helvetica")
+    .fontSize(Math.max(7, Math.min(10, box.width * 0.24)))
+    .fillColor("#51607A")
+    .text("Yogesh Negi", 0, 18, {
+      width: box.height - 48,
+      align: "center"
+    });
+  doc.restore();
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -115,13 +390,15 @@ export async function createPdfBook({ puzzles, request, fileName }) {
 // ─────────────────────────────────────────────────────────────
 function renderCoverPage(doc, request, totalPuzzles, page) {
   const palette = getPalette(request.type);
+  const scale = getPageScale(page);
+  const compactCover = page.width < 460;
 
   // Rich layered background
   paintPageBase(doc, palette.soft);
   drawDiagonalStripes(doc, palette, page);
   drawOuterChrome(doc, palette, page);
 
-  const frameInset = Math.max(28, Math.min(42, page.width * 0.055));
+  const frameInset = Math.max(22, Math.min(42, page.width * 0.055));
   const frame = {
     x: frameInset,
     y: frameInset,
@@ -131,60 +408,89 @@ function renderCoverPage(doc, request, totalPuzzles, page) {
 
   // Outer frame with thick decorative border
   drawDecorativeFrame(doc, frame, palette);
-  drawRoundedPanel(doc, frame, palette, 28, "#FFFFFF");
+  drawRoundedPanel(doc, frame, palette, Math.max(20, 28 * scale), "#FFFFFF");
 
-  const inner = inset(frame, 28);
-  const footerHeight = 52;
-  const gutter = 24;
+  const inner = inset(frame, Math.max(18, 28 * scale));
+  const footerHeight = Math.max(42, 52 * scale);
+  const gutter = Math.max(12, 24 * scale);
   const left = {
     x: inner.x,
     y: inner.y,
-    width: Math.min(256, inner.width * 0.47),
+    width: compactCover ? inner.width : Math.min(256 * scale, inner.width * 0.47),
     height: inner.height - footerHeight
   };
-  const right = {
-    x: left.x + left.width + gutter,
-    y: inner.y + 48,
-    width: inner.width - left.width - gutter,
-    height: inner.height - footerHeight - 56
-  };
+  const right = compactCover
+    ? null
+    : {
+        x: left.x + left.width + gutter,
+        y: inner.y + 48 * scale,
+        width: inner.width - left.width - gutter,
+        height: inner.height - footerHeight - 56 * scale
+      };
 
   // Author badge — pill with gradient feel
   drawPremiumRibbon(doc, left.x, left.y + 8, Math.min(224, left.width), 24, palette.primary, "✦ YOGESH NEGI");
 
   // Title area
-  const titleY = left.y + 62;
+  const titleY = left.y + 62 * scale;
   const title = "Puzzle Book Export";
   const subtitle =
     "Crafted for clean print-ready exports with richer layouts, stronger branding, and stable puzzle presentation.";
 
-  doc.font("Helvetica-Bold").fontSize(28);
-  const titleHeight = doc.heightOfString(title, { width: left.width, lineGap: 3 });
+  const titleSize = fitFontSize(page, 28, 21, 33);
+  const subtitleSize = fitFontSize(page, 12, 9.5, 13);
+  const subtitleWidth = compactCover ? left.width : Math.min(left.width, 270 * scale);
+
+  doc.font("Helvetica-Bold").fontSize(titleSize);
+  const titleHeight = doc.heightOfString(title, {
+    width: left.width,
+    lineGap: Math.max(1, 3 * scale)
+  });
 
   // Title with decorative underline bar
   doc.fillColor(palette.dark)
     .font("Helvetica-Bold")
-    .fontSize(28)
-    .text(title, left.x, titleY, { width: left.width, lineGap: 3, align: "left" });
+    .fontSize(titleSize)
+    .text(title, left.x, titleY, {
+      width: left.width,
+      lineGap: Math.max(1, 3 * scale),
+      align: "left"
+    });
 
-  drawAccentBar(doc, left.x, titleY + titleHeight + 4, Math.min(80, left.width * 0.4), palette);
+  drawAccentBar(
+    doc,
+    left.x,
+    titleY + titleHeight + 4 * scale,
+    Math.min(80 * scale, left.width * 0.4),
+    palette
+  );
 
-  const subtitleY = titleY + titleHeight + 18;
-  doc.font("Helvetica").fontSize(12);
-  const subtitleHeight = doc.heightOfString(subtitle, { width: left.width, lineGap: 5 });
+  const subtitleY = titleY + titleHeight + 18 * scale;
+  doc.font("Helvetica").fontSize(subtitleSize);
+  const subtitleHeight = doc.heightOfString(subtitle, {
+    width: subtitleWidth,
+    lineGap: Math.max(2, 5 * scale)
+  });
 
   doc.fillColor("#4A5570")
     .font("Helvetica")
-    .fontSize(12)
-    .text(subtitle, left.x, subtitleY, { width: left.width, lineGap: 5 });
+    .fontSize(subtitleSize)
+    .text(subtitle, left.x, subtitleY, {
+      width: subtitleWidth,
+      lineGap: Math.max(2, 5 * scale)
+    });
+
+  const summaryTop = subtitleY + subtitleHeight + 26 * scale;
 
   drawSummaryCard(
     doc,
     {
       x: left.x,
-      y: subtitleY + subtitleHeight + 30,
+      y: summaryTop,
       width: left.width,
-      height: 188
+      height: compactCover
+        ? Math.max(140, left.height - (summaryTop - left.y) - 8)
+        : Math.max(160, 188 * scale)
     },
     palette,
     [
@@ -193,24 +499,31 @@ function renderCoverPage(doc, request, totalPuzzles, page) {
       ["Puzzles", String(totalPuzzles)],
       ["Layout", `${request.layout.puzzlesPerPage} per page`],
       ...(["crossword", "wordsearch"].includes(request.type) ? [["Theme", capitalize(request.theme)]] : [])
-    ]
+    ],
+    scale
   );
 
-  drawCoverArt(doc, right, palette, request.type);
+  if (right && right.width > 70 && right.height > 100) {
+    drawCoverArt(doc, right, palette, request.type);
+  }
 
   // Footer divider line
-  const footerY = frame.y + frame.height - 38;
-  drawThinRule(doc, frame.x + 28, footerY - 8, frame.width - 56, palette.line);
+  const footerY = frame.y + frame.height - 38 * scale;
+  drawThinRule(doc, frame.x + 28 * scale, footerY - 8 * scale, frame.width - 56 * scale, palette.line);
 
   doc.fillColor("#6B7590")
     .font("Helvetica")
-    .fontSize(10.5)
-    .text(`Formatted for ${request.layout.pageSizeLabel} inch print-safe output.`, left.x, footerY, { width: 260 });
+    .fontSize(fitFontSize(page, 10.5, 8.3, 11))
+    .text(`Formatted for ${request.layout.pageSizeLabel} inch print-safe output.`, left.x, footerY, {
+      width: compactCover ? left.width : 260 * scale
+    });
 
   doc.fillColor(palette.primary)
     .font("Helvetica-Bold")
-    .fontSize(11.5)
-    .text("Colorful. Clean. KDP-friendly.", left.x, footerY + 17, { width: 220 });
+    .fontSize(fitFontSize(page, 11.5, 8.8, 12))
+    .text("Colorful. Clean. KDP-friendly.", left.x, footerY + 17 * scale, {
+      width: compactCover ? left.width : 220 * scale
+    });
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -737,7 +1050,7 @@ function drawBlockHeader(doc, puzzle, region, palette, isSolution, compact) {
   const ribbonWidth = compact ? 80 : 100;
   const baseY = region.y + padding;
   const titleY = baseY + (compact ? 26 : 30);
-  const titleSize = compact ? 13.5 : 19;
+  const titleSize = Math.min(compact ? 13.5 : 19, Math.max(compact ? 10 : 14, region.width * 0.06));
   const chipY = titleY + titleSize + 10;
 
   drawPremiumRibbon(
@@ -802,17 +1115,21 @@ function drawFooterTag(doc, region, palette, label, compact) {
 // ─────────────────────────────────────────────────────────────
 // SUMMARY CARD
 // ─────────────────────────────────────────────────────────────
-function drawSummaryCard(doc, box, palette, rows) {
+function drawSummaryCard(doc, box, palette, rows, scale = 1) {
   drawShadowPanel(doc, box, 20);
   drawRoundedPanel(doc, box, palette, 22, "#FFFFFF");
   drawPanelTopAccent(doc, box, palette, 22);
 
-  let offsetY = box.y + 22;
-  for (const [label, value] of rows) {
+  const labelSize = Math.max(6.8, 8.5 * scale);
+  const valueSize = Math.max(11.2, 15.5 * scale);
+  const rowHeight = Math.max(26, 34 * scale);
+  let offsetY = box.y + Math.max(16, 22 * scale);
+
+  rows.forEach(([label, value], index) => {
     // Alternating row background
-    if (rows.indexOf([label, value]) % 2 === 0) {
+    if (index % 2 === 0) {
       doc.save()
-        .roundedRect(box.x + 10, offsetY - 2, box.width - 20, 30, 6)
+        .roundedRect(box.x + 10, offsetY - 2, box.width - 20, Math.max(22, 30 * scale), 6)
         .fillOpacity(0.06)
         .fill(palette.primary)
         .restore();
@@ -820,17 +1137,16 @@ function drawSummaryCard(doc, box, palette, rows) {
 
     doc.fillColor(palette.muted || "#6C7485")
       .font("Helvetica-Bold")
-      .fontSize(8.5)
+      .fontSize(labelSize)
       .text(label.toUpperCase(), box.x + 18, offsetY);
 
     doc.fillColor(palette.dark)
       .font("Helvetica-Bold")
-      .fontSize(15.5)
-      .text(value, box.x + 18, offsetY + 12, { width: box.width - 36 });
+      .fontSize(valueSize)
+      .text(value, box.x + 18, offsetY + Math.max(10, 12 * scale), { width: box.width - 36 });
 
-    offsetY += 34;
-    if (offsetY > box.y + box.height - 26) break;
-  }
+    offsetY += rowHeight;
+  });
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -838,11 +1154,13 @@ function drawSummaryCard(doc, box, palette, rows) {
 // ─────────────────────────────────────────────────────────────
 function renderBackCoverPage(doc, request, totalPuzzles, page) {
   const palette = getPalette(request.type);
+  const scale = getPageScale(page);
+  const compactCover = page.width < 460;
   paintPageBase(doc, palette.soft);
   drawDiagonalStripes(doc, palette, page);
   drawOuterChrome(doc, palette, page);
 
-  const frameInset = Math.max(32, Math.min(44, page.width * 0.065));
+  const frameInset = Math.max(24, Math.min(44, page.width * 0.065));
   const frame = {
     x: frameInset,
     y: frameInset,
@@ -851,63 +1169,88 @@ function renderBackCoverPage(doc, request, totalPuzzles, page) {
   };
 
   drawDecorativeFrame(doc, frame, palette);
-  drawRoundedPanel(doc, frame, palette, 30, "#FFFFFF");
+  drawRoundedPanel(doc, frame, palette, Math.max(20, 30 * scale), "#FFFFFF");
 
   drawPremiumRibbon(doc, frame.x + 30, frame.y + 26, 190, 24, palette.primary, "✦ YOGESH NEGI");
 
   doc.fillColor(palette.dark)
     .font("Helvetica-Bold")
-    .fontSize(30)
-    .text("Made for fresh puzzle moments.", frame.x + 30, frame.y + 82, { width: 330, lineGap: 3 });
+    .fontSize(fitFontSize(page, 30, 18, 32))
+    .text("Made for fresh puzzle moments.", frame.x + 30 * scale, frame.y + 82 * scale, {
+      width: compactCover ? frame.width - 60 * scale : Math.min(330 * scale, frame.width * 0.52),
+      lineGap: Math.max(1, 3 * scale)
+    });
 
-  drawAccentBar(doc, frame.x + 30, frame.y + 130, 72, palette);
+  drawAccentBar(doc, frame.x + 30 * scale, frame.y + 130 * scale, 72 * scale, palette);
 
   doc.fillColor("#51607A")
     .font("Helvetica")
-    .fontSize(12)
+    .fontSize(fitFontSize(page, 12, 9.2, 12.5))
     .text(
       `This ${formatPuzzleType(request.type).toLowerCase()} edition includes ${totalPuzzles} print-ready pages designed for Amazon KDP interiors, family play, and clean at-home printing.`,
-      frame.x + 30,
-      frame.y + 148,
-      { width: 316, lineGap: 5 }
+      frame.x + 30 * scale,
+      frame.y + 148 * scale,
+      {
+        width: compactCover ? frame.width - 60 * scale : Math.min(316 * scale, frame.width * 0.5),
+        lineGap: Math.max(2, 5 * scale)
+      }
     );
 
-  drawBackCoverArt(doc, {
-    x: frame.x + frame.width - 174,
-    y: frame.y + 148,
-    width: 122,
-    height: 152
-  }, palette, request.type);
+  if (!compactCover) {
+    drawBackCoverArt(
+      doc,
+      {
+        x: frame.x + frame.width - 174 * scale,
+        y: frame.y + 148 * scale,
+        width: 122 * scale,
+        height: 152 * scale
+      },
+      palette,
+      request.type
+    );
+  }
 
   drawSummaryCard(
     doc,
-    { x: frame.x + 30, y: frame.y + 278, width: 256, height: 162 },
+    {
+      x: frame.x + 30 * scale,
+      y: compactCover ? frame.y + 250 * scale : frame.y + 278 * scale,
+      width: compactCover ? frame.width - 60 * scale : Math.min(256 * scale, frame.width * 0.45),
+      height: Math.max(132, 162 * scale)
+    },
     palette,
     [
       ["Edition", formatPuzzleType(request.type)],
       ["Difficulty", capitalize(request.difficulty)],
       ["Layout", `${request.layout.puzzlesPerPage} per page`],
       ["Author", "Yogesh Negi"]
-    ]
+    ],
+    scale
   );
 
-  drawThinRule(doc, frame.x + 30, frame.y + frame.height - 106, frame.width - 60, palette.line);
+  drawThinRule(
+    doc,
+    frame.x + 30 * scale,
+    frame.y + frame.height - 106 * scale,
+    frame.width - 60 * scale,
+    palette.line
+  );
 
   doc.fillColor(palette.primary)
     .font("Helvetica-Bold")
-    .fontSize(15.5)
-    .text("Designed for bright, friendly puzzle books.", frame.x + 30, frame.y + frame.height - 96, {
-      width: frame.width - 60
+    .fontSize(fitFontSize(page, 15.5, 10.5, 16))
+    .text("Designed for bright, friendly puzzle books.", frame.x + 30 * scale, frame.y + frame.height - 96 * scale, {
+      width: frame.width - 60 * scale
     });
 
   doc.fillColor("#5E6678")
     .font("Helvetica")
-    .fontSize(11)
+    .fontSize(fitFontSize(page, 11, 8.4, 11.5))
     .text(
       "Interior back page for print-safe exports and polished KDP-ready presentation.",
-      frame.x + 30,
-      frame.y + frame.height - 70,
-      { width: frame.width - 60 }
+      frame.x + 30 * scale,
+      frame.y + frame.height - 70 * scale,
+      { width: frame.width - 60 * scale }
     );
 }
 
@@ -1347,6 +1690,18 @@ function formatPuzzleType(value) {
 function getPage(request) {
   const [width, height] = request.layout.pageSize;
   return { width, height };
+}
+
+function getPageScale(page) {
+  return Math.max(0.78, Math.min(1.08, Math.min(page.width / 612, page.height / 792)));
+}
+
+function fitFontSize(page, base, min, max = base) {
+  return Math.max(min, Math.min(max, base * getPageScale(page)));
+}
+
+function inchesToPoints(value) {
+  return value * 72;
 }
 
 function getPalette(type) {

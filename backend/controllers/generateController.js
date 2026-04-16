@@ -39,6 +39,10 @@ export async function generatePdfBook(req, res, next) {
       success: true,
       fileUrl: `/api/downloads/${result.fileName}`,
       fileName: result.fileName,
+      interiorFileUrl: `/api/downloads/${result.fileName}`,
+      interiorFileName: result.fileName,
+      coverFileUrl: result.coverFileName ? `/api/downloads/${result.coverFileName}` : null,
+      coverFileName: result.coverFileName,
       manifestId: result.manifestId,
       totalPuzzles: result.totalPuzzles
     });

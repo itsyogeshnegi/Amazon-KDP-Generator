@@ -46,7 +46,13 @@ export default function HomePage() {
     setError("");
     try {
       const response = await generatePuzzleBook(nextForm);
-      await downloadGeneratedPdf(response.fileUrl, response.fileName);
+      await downloadGeneratedPdf(
+        response.interiorFileUrl || response.fileUrl,
+        response.interiorFileName || response.fileName
+      );
+      if (response.coverFileUrl && response.coverFileName) {
+        await downloadGeneratedPdf(response.coverFileUrl, response.coverFileName);
+      }
       setForm(nextForm);
       setDownload(response);
     } catch (generateError) {
@@ -64,9 +70,9 @@ export default function HomePage() {
           <h1>Puzzle book generator</h1>
           <p className="lead">
             Build printable Sudoku, Maze, Crossword, Word Search, and
-            Tic-Tac-Toe books with preview, numbering, front and back cover
-            support, and answer keys in a brighter, more premium creator
-            workspace.
+            Tic-Tac-Toe books with preview, numbering, separate KDP interior
+            and wraparound cover exports, and answer keys in a brighter, more
+            premium creator workspace.
           </p>
           <div className="hero-badges">
             <span>Sudoku Studio</span>

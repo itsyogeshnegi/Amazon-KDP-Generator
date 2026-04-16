@@ -1,9 +1,17 @@
 import { downloadGeneratedPdf } from "../services/api.js";
 
 export default function DownloadCard({ download, submitting }) {
-  async function handleDownloadAgain() {
-    if (!download?.fileUrl) return;
-    await downloadGeneratedPdf(download.fileUrl, download.fileName);
+  async function handleDownloadInterior() {
+    if (!download?.interiorFileUrl && !download?.fileUrl) return;
+    await downloadGeneratedPdf(
+      download.interiorFileUrl || download.fileUrl,
+      download.interiorFileName || download.fileName
+    );
+  }
+
+  async function handleDownloadCover() {
+    if (!download?.coverFileUrl || !download?.coverFileName) return;
+    await downloadGeneratedPdf(download.coverFileUrl, download.coverFileName);
   }
 
   return (
@@ -23,13 +31,18 @@ export default function DownloadCard({ download, submitting }) {
         <div className="download-box">
           <p className="download-label">Your book is ready</p>
           <p className="download-note">
-            The PDF is downloaded to your system through the browser download flow.
+            The generator now creates a KDP interior PDF and a separate wraparound cover PDF.
           </p>
           <p>Manifest: {download.manifestId}</p>
           <p>Total puzzles: {download.totalPuzzles}</p>
-          <button type="button" onClick={handleDownloadAgain}>
-            Download generated PDF
+          <button type="button" onClick={handleDownloadInterior}>
+            Download interior PDF
           </button>
+          {download.coverFileUrl ? (
+            <button type="button" onClick={handleDownloadCover}>
+              Download cover PDF
+            </button>
+          ) : null}
         </div>
       )}
     </section>

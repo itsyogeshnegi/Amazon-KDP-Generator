@@ -24,8 +24,10 @@ export async function writeGenerationManifest({
   createdAt,
   request,
   puzzleCount,
+  interiorPageCount,
   jsonFileName,
   pdfPath,
+  coverPdfPath,
   puzzles
 }) {
   const targetPath = path.join(dataDir, jsonFileName);
@@ -34,8 +36,10 @@ export async function writeGenerationManifest({
     createdAt,
     request,
     puzzleCount,
+    interiorPageCount,
     jsonPath: targetPath,
     pdfPath,
+    coverPdfPath,
     puzzles
   };
 

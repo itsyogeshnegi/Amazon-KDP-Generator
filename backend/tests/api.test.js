@@ -76,11 +76,20 @@ test("generate endpoint creates a PDF and download route serves it", async () =>
   assert.equal(response.status, 200);
   assert.equal(body.success, true);
   assert.match(body.fileUrl, /^\/api\/downloads\/.+\.pdf$/);
+  assert.match(body.interiorFileUrl, /^\/api\/downloads\/.+\.pdf$/);
+  assert.match(body.interiorFileName, /^.+\.pdf$/);
+  assert.match(body.coverFileUrl, /^\/api\/downloads\/.+\.pdf$/);
+  assert.match(body.coverFileName, /^.+\.pdf$/);
 
-  const fileResponse = await fetch(`http://127.0.0.1:${port}${body.fileUrl}`);
-  assert.equal(fileResponse.status, 200);
-  assert.equal(fileResponse.headers.get("content-type"), "application/pdf");
-  await fileResponse.arrayBuffer();
+  const interiorResponse = await fetch(`http://127.0.0.1:${port}${body.interiorFileUrl}`);
+  assert.equal(interiorResponse.status, 200);
+  assert.equal(interiorResponse.headers.get("content-type"), "application/pdf");
+  await interiorResponse.arrayBuffer();
+
+  const coverResponse = await fetch(`http://127.0.0.1:${port}${body.coverFileUrl}`);
+  assert.equal(coverResponse.status, 200);
+  assert.equal(coverResponse.headers.get("content-type"), "application/pdf");
+  await coverResponse.arrayBuffer();
   await closeServer(server);
 });
 

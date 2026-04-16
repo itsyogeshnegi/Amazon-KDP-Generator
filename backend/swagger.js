@@ -55,7 +55,20 @@ const swaggerDefinition = {
           },
           bookSize: {
             type: "string",
-            enum: ["8.5x11", "8x10", "6x9"],
+            enum: [
+              "5x8",
+              "5.25x8",
+              "5.5x8.5",
+              "6x9",
+              "5.06x7.81",
+              "6.14x9.21",
+              "6.69x9.61",
+              "7x10",
+              "7.44x9.69",
+              "7.5x9.25",
+              "8x10",
+              "8.5x11"
+            ],
             example: "8.5x11"
           },
           includeCoverPage: {
@@ -93,6 +106,10 @@ const swaggerDefinition = {
           success: { type: "boolean" },
           fileUrl: { type: "string", example: "/api/downloads/puzzle-book-demo.pdf" },
           fileName: { type: "string", example: "puzzle-book-demo.pdf" },
+          interiorFileUrl: { type: "string", example: "/api/downloads/puzzle-book-interior-demo.pdf" },
+          interiorFileName: { type: "string", example: "puzzle-book-interior-demo.pdf" },
+          coverFileUrl: { type: "string", nullable: true, example: "/api/downloads/puzzle-book-cover-demo.pdf" },
+          coverFileName: { type: "string", nullable: true, example: "puzzle-book-cover-demo.pdf" },
           manifestId: { type: "string" },
           totalPuzzles: { type: "integer" }
         }

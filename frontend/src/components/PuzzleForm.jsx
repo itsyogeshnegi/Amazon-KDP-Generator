@@ -2,9 +2,18 @@ import { useEffect, useState } from "react";
 
 const themes = ["general", "animals", "tech", "space"];
 const bookSizes = [
-  { value: "8.5x11", label: "8.5 x 11 in" },
+  { value: "5x8", label: "5 x 8 in" },
+  { value: "5.25x8", label: "5.25 x 8 in" },
+  { value: "5.5x8.5", label: "5.5 x 8.5 in" },
+  { value: "6x9", label: "6 x 9 in" },
+  { value: "5.06x7.81", label: "5.06 x 7.81 in" },
+  { value: "6.14x9.21", label: "6.14 x 9.21 in" },
+  { value: "6.69x9.61", label: "6.69 x 9.61 in" },
+  { value: "7x10", label: "7 x 10 in" },
+  { value: "7.44x9.69", label: "7.44 x 9.69 in" },
+  { value: "7.5x9.25", label: "7.5 x 9.25 in" },
   { value: "8x10", label: "8 x 10 in" },
-  { value: "6x9", label: "6 x 9 in" }
+  { value: "8.5x11", label: "8.5 x 11 in" }
 ];
 
 export default function PuzzleForm({
@@ -138,7 +147,7 @@ export default function PuzzleForm({
           checked={form.includeCoverPage}
           onChange={(event) => updateField("includeCoverPage", event.target.checked)}
         />
-        Include front and back cover pages
+        Generate separate KDP wraparound cover PDF
       </label>
 
       <div className="actions">
